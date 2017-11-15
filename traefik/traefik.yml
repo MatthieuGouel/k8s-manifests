@@ -1,0 +1,140 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+rules:
+- apiGroups:
+  - ""
+  resources: ["configmaps","secrets","endpoints","events","services"]
+  verbs: ["list","watch","create","update","delete","get"]
+- apiGroups:
+  - ""
+  - "extensions"
+  resources: ["services","nodes","ingresses","pods","ingresses/status"]
+  verbs: ["list","watch","create","update","delete","get"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+- kind: ServiceAccount
+  name: traefik-ingress-controller
+  namespace: traefik
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: traefik
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-conf
+  namespace: traefik
+data:
+  traefik.toml: |-
+    defaultEntryPoints = ["http","https"]
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+        [entryPoints.http.redirect]
+        entryPoint = "https"
+      [entryPoints.https]
+      address = ":443"
+        [entryPoints.https.tls]
+          [[entryPoints.https.tls.certificates]]
+          CertFile = "/ssl/tls.crt"
+          KeyFile = "/ssl/tls.key"
+    [web]
+    address = ":8080"
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: traefik-ingress-controller
+  namespace: traefik
+  labels:
+    k8s-app: traefik-ingress-lb
+    kubernetes.io/cluster-service: "true"
+spec:
+  template:
+     metadata:
+       labels:
+         k8s-app: traefik-ingress-lb
+         name: traefik-ingress-lb
+     spec:
+       hostNetwork: true
+       serviceAccountName: traefik-ingress-controller
+       terminationGracePeriodSeconds: 60
+       volumes:
+       - name: ssl
+         secret:
+           secretName: home
+       - name: config
+         configMap:
+           name: traefik-conf
+       tolerations:
+       - key: node-role.kubernetes.io/master
+         effect: NoSchedule
+       containers:
+       - image: traefik:v1.3.1
+         name: traefik-ingress-lb
+         imagePullPolicy: Always
+         volumeMounts:
+         - mountPath: "/ssl"
+           name: "ssl"
+         - mountPath: "/config"
+           name: "config"
+         resources:
+           requests:
+             cpu: 100m
+             memory: 20Mi
+         ports:
+         - containerPort: 80
+         - containerPort: 443
+         args:
+         - --kubernetes
+         - --configfile=/config/traefik.toml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-web-ui
+  namespace: traefik
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: traefik-web-ui
+  namespace: traefik
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  tls:
+  - secretName: home
+  rules:
+  - host: "traefik.home.local"
+    http:
+      paths:
+      - backend:
+          serviceName: traefik-web-ui
+          servicePort: http

@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: health
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-health
+  namespace: health
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-health
+  namespace: health
+  labels:
+    app: nginx
+spec:
+  ports:
+  - name: http
+    port: 80
+  selector:
+    app: nginx
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-health
+  namespace: health
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  tls:
+  - secretName: home
+  rules:
+  - host: health.home.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-health
+          servicePort: http
