@@ -9,7 +9,7 @@ Note that is the "insecure" version of the deployment because it uses HTTP into 
 As usual.
 
 ```
-kubectl apply -f https://github.com/MatthieuGouel/k8s-manifests/blob/master/dashboard/dashboard.yml
+kubectl apply -f https://raw.githubusercontent.com/MatthieuGouel/k8s-manifests/master/dashboard/dashboard.yml
 ```
 
 ## Sources

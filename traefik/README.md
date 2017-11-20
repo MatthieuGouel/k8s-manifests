@@ -32,7 +32,7 @@ You can notice that the secret's name is "home" which is the name used everywher
 Then, simply apply the Traefik configuration file.
 
 ```
-kubectl apply -f https://github.com/MatthieuGouel/k8s-manifests/blob/master/traefik/traefik.yml
+kubectl apply -f https://raw.githubusercontent.com/MatthieuGouel/k8s-manifests/master/traefik/traefik.yml
 ```
 
 ## Use Traefik with your apps
