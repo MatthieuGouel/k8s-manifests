@@ -58,7 +58,7 @@ kubectl delete namespace todd
 
 # Notes
 
-I have a problem when I use ToDD API outside of the cluster because of the http to https redirection option of Traefik.
+I have a problem when I use ToDD API outside of the cluster because of the http to https redirection option of Traefik.  
 Everything works great with a GET method but with a POST (create a group for instance), I have the following error server-side of ToDD.
 
 ```
@@ -88,7 +88,7 @@ And a 502 error client-side :
 502 Bad Gateway
 ```
 
-So, for now, in order to use the ToDD API outside of the cluster, I must deactivate the http to https redirection in Traefik.
+So, for now, in order to use the ToDD API outside of the cluster, I must deactivate the http to https redirection in Traefik.  
 To do that, delete this two lines of the config.toml configuration file of Traefik :
 
 ```
@@ -98,7 +98,7 @@ entryPoint = "https"
 
 ## Sources
 
-This manifest is written based of my researches in several websites.
+This manifest is written based of my researches in several websites.  
 Here is the sources which have helped me the most (the list may be not exclusive).
 
 * https://github.com/toddproject/todd
