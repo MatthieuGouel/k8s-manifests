@@ -1,0 +1,105 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-volume
+  namespace: todd
+  labels:
+    type: local
+    app: todd
+    module: grafana
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  hostPath:
+    path: /tmp/data/grafana-volume
+  persistentVolumeReclaimPolicy: Recycle
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-claim
+  namespace: todd
+  labels:
+    app: todd
+    module: grafana
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: todd
+  labels:
+    app: todd
+    module: grafana
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: todd
+        module: grafana
+    spec:
+      hostname: grafana
+      subdomain: todd
+      containers:
+      - image: grafana/grafana
+        name: grafana
+        ports:
+        - containerPort: 3000
+          name: frontend
+        volumeMounts:
+        - name: grafana
+          mountPath: /var/lib/grafana
+      volumes:
+      - name: grafana
+        persistentVolumeClaim:
+          claimName: grafana-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todd
+    module: grafana
+  name: grafana
+  namespace: todd
+spec:
+  ports:
+  - name: frontend
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: todd
+    module: grafana
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: todd
+    module: grafana
+  name: grafana
+  namespace: todd
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  tls:
+  - secretName: home
+  rules:
+  - host: todd.home.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: grafana
+          servicePort: 3000

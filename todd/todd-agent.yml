@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: todd
+    module: todd-agent
+  name: agent.cfg
+  namespace: todd
+data:
+  agent.cfg: |-
+    [Comms]
+    User = guest
+    Password = guest
+    Host = rabbitmq.todd
+    Port = 5672
+    Plugin = rabbitmq
+
+    [LocalResources]
+    DefaultInterface = eth0
+    # IPAddrOverride = 192.168.99.100  # Normally, the DefaultInterface configuration option is used to get IP address. This overrides that in the event that it doesn't work
+    OptDir = /opt/todd/agent
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: todd-agent
+  namespace: todd
+spec:
+  selector:
+    matchLabels:
+      app: todd
+      module: todd-agent
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: todd
+          module: todd-agent
+    spec:
+      hostname: todd
+      subdomain: todd
+      volumes:
+      - name: config
+        configMap:
+          name: agent.cfg
+      containers:
+      - name: todd-agent
+        image: toddproject/todd:latest
+        imagePullPolicy: Always
+        volumeMounts:
+         - mountPath: "/config"
+           name: "config"
+        command:
+        - todd-agent
+        args:
+        - --config=/config/agent.cfg

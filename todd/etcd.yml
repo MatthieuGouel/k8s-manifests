@@ -1,0 +1,74 @@
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: etcd
+  namespace: todd
+spec:
+  selector:
+    matchLabels:
+      app: todd
+      module: etcd
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: todd
+          module: etcd
+    spec:
+      hostname: etcd
+      subdomain: todd
+      containers:
+      - name: etcd
+        image: quay.io/coreos/etcd:v2.0.8
+        args:
+        - -name
+        - etcd
+        - -advertise-client-urls
+        - http://etcd.todd:2379,http://etcd.todd:4001
+        - -listen-client-urls
+        - http://0.0.0.0:2379,http://0.0.0.0:4001
+        - -initial-advertise-peer-urls
+        - http://etcd.todd:2380
+        - -listen-peer-urls
+        - http://0.0.0.0:2380
+        - -initial-cluster
+        - etcd=http://etcd.todd:2380
+        - -initial-cluster-state
+        - new
+        ports:
+        - containerPort: 2379
+          name: client
+          protocol: TCP
+        - containerPort: 4001
+          name: client-custom
+          protocol: TCP
+        - containerPort: 2380
+          name: server
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todd
+    module: etcd
+  name: etcd
+  namespace: todd
+spec:
+  ports:
+  - name: client
+    port: 2379
+    protocol: TCP
+    targetPort: 2379
+  - name: client-custom
+    port: 4001
+    protocol: TCP
+    targetPort: 4001
+  - name: server
+    port: 2380
+    protocol: TCP
+    targetPort: 2380
+  selector:
+    app: todd
+    module: etcd

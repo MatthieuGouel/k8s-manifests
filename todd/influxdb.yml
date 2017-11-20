@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: influxdb-volume
+  namespace: todd
+  labels:
+    type: local
+    app: todd
+    module: influxdb
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  hostPath:
+    path: /tmp/data/influxdb-volume
+  persistentVolumeReclaimPolicy: Recycle
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: influxdb-claim
+  namespace: todd
+  labels:
+    app: todd
+    module: influxdb
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: influxdb
+  namespace: todd
+  labels:
+    app: todd
+    module: influxdb
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: todd
+        module: influxdb
+    spec:
+      hostname: influxdb
+      subdomain: todd
+      containers:
+      - image: tutum/influxdb:0.9
+        name: influxdb
+        ports:
+        - containerPort: 8083
+          name: frontend
+        - containerPort: 8086
+          name: api
+        volumeMounts:
+        - name: influxdb
+          mountPath: /data
+      volumes:
+      - name: influxdb
+        persistentVolumeClaim:
+          claimName: influxdb-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todd
+    module: influxdb
+  name: influxdb
+  namespace: todd
+spec:
+  ports:
+  - name: frontend
+    port: 8083
+    targetPort: 8083
+  - name: api
+    port: 8086
+    targetPort: 8086
+  selector:
+    app: todd
+    module: influxdb

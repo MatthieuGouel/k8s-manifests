@@ -1,0 +1,127 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: todd
+    module: todd-server
+  name: server.cfg
+  namespace: todd
+data:
+  server.cfg: |-
+    [API]
+    Host = 0.0.0.0
+    Port = 8080
+
+    [Comms]
+    User = guest
+    Password = guest
+    Host = rabbitmq.todd
+    Port = 5672
+    Plugin = rabbitmq
+
+    [Assets]
+    IP = 0.0.0.0
+    Port = 8090
+
+    [DB]
+    Host = etcd.todd
+    Port = 4001
+    Plugin = etcd
+
+    [TSDB]
+    Host = influxdb.todd
+    Port = 8086
+    Plugin = influxdb
+    DatabaseName = todd_metrics
+
+    [Grouping]
+    Interval = 10
+
+    [Testing]
+    Timeout = 30   # This is the timer (in seconds) that a test will be allowed to live
+
+    [LocalResources]
+    DefaultInterface = eth0
+    #IPAddrOverride = 192.168.0.1 # Normally, the DefaultInterface configuration option is used to get IP address. This overrides that in the event that it doesn't work
+    OptDir = /opt/todd/server
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: todd-server
+  namespace: todd
+spec:
+  selector:
+    matchLabels:
+      app: todd
+      module: todd-server
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: todd
+          module: todd-server
+    spec:
+      hostname: todd
+      subdomain: todd
+      volumes:
+      - name: config
+        configMap:
+          name: server.cfg
+      containers:
+      - name: todd-server
+        image: toddproject/todd:latest
+        imagePullPolicy: Always
+        volumeMounts:
+         - mountPath: "/config"
+           name: "config"
+        command:
+        - todd-server
+        args:
+        - --config=/config/server.cfg
+        ports:
+        - containerPort: 8080
+          name: api
+        - containerPort: 8090
+          name: assets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todd
+    module: todd-server
+  name: todd-server
+  namespace: todd
+spec:
+  ports:
+  - name: api
+    port: 8080
+    targetPort: 8080
+  - name: assets
+    port: 8090
+    targetPort: 8090
+  selector:
+    app: todd
+    module: todd-server
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: todd
+    module: todd-server
+  name: todd-server
+  namespace: todd
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: todd-server.home.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: todd-server
+          servicePort: 8080

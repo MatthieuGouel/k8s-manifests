@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: todd
+spec:
+  selector:
+    matchLabels:
+      app: todd
+      module: rabbitmq
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: todd
+          module: rabbitmq
+    spec:
+      hostname: rabbitmq
+      subdomain: todd
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "guest"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "guest"
+        ports:
+        - containerPort: 15672
+          name: management
+        - containerPort: 5672
+          name: queue
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: todd
+    module: rabbitmq
+  name: rabbitmq
+  namespace: todd
+spec:
+  ports:
+  - name: management
+    port: 15672
+    targetPort: 15672
+  - name: queue
+    port: 5672
+    targetPort: 5672
+  selector:
+    app: todd
+    module: rabbitmq
