@@ -1,0 +1,106 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-volume
+  namespace: registry
+  labels:
+    type: local
+    app: registry
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+  - ReadWriteOnce
+  hostPath:
+    path: /tmp/data/registry-volume
+  persistentVolumeReclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-claim
+  namespace: registry
+  labels:
+    app: registry
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: registry
+  labels:
+    app: registry
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+      - image: registry:2
+        name: registry
+        env:
+        - name: REGISTRY_HTTP_ADDR
+          value: :5000
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: /var/lib/registry
+        ports:
+        - containerPort: 5000
+          name: registry
+          protocol: TCP
+        volumeMounts:
+        - name: registry
+          mountPath: /var/lib/registry
+      volumes:
+      - name: registry
+        persistentVolumeClaim:
+          claimName: registry-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: registry
+  name: registry
+  namespace: registry
+spec:
+  ports:
+  - name: registry
+    port: 5000
+    targetPort: 5000
+    protocol: TCP
+  selector:
+    app: registry
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: registry
+  namespace: registry
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  tls:
+  - secretName: home
+  rules:
+  - host: registry.home.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: registry
+          servicePort: 5000
