@@ -2,27 +2,27 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: registry
+  name: pypi
   namespace: infrastructure
   labels:
     type: local
-    app: registry
+    app: pypi
 spec:
   capacity:
     storage: 5Gi
   accessModes:
   - ReadWriteOnce
   hostPath:
-    path: /mnt/kubernetes/registry
+    path: /mnt/kubernetes/pypi
   persistentVolumeReclaimPolicy: Delete
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: registry
+  name: pypi
   namespace: infrastructure
   labels:
-    app: registry
+    app: pypi
 spec:
   accessModes:
   - ReadWriteOnce
@@ -30,61 +30,64 @@ spec:
     requests:
       storage: 5Gi
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: registry
+  name: pypi
   namespace: infrastructure
   labels:
-    app: registry
+    app: pypi
 spec:
-  strategy:
-    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pypi
   template:
     metadata:
       labels:
-        app: registry
+        app: pypi
     spec:
-      containers:
-      - image: registry:2
-        name: registry
-        env:
-        - name: REGISTRY_HTTP_ADDR
-          value: :5000
-        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
-          value: /var/lib/registry
-        ports:
-        - containerPort: 5000
-          name: registry
-          protocol: TCP
+      initContainers:
+      - name: permission-fix
+        image: busybox
+        command: ["sh", "-c", "chmod -R 777 /packages"]
         volumeMounts:
-        - name: registry
-          mountPath: /var/lib/registry
+        - name: pypi
+          mountPath: /packages
+      containers:
+      - name: pypi
+        image: pypiserver/pypiserver:latest
+        args: ["-P", ".", "-a", "."]
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: pypi
+          mountPath: /home/pypiserver/packages
       volumes:
-      - name: registry
+      - name: pypi
         persistentVolumeClaim:
-          claimName: registry
+          claimName: pypi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: registry
-  name: registry
+  name: pypi
   namespace: infrastructure
+  labels:
+    app: pypi
 spec:
   ports:
-  - name: registry
-    port: 5000
-    targetPort: 5000
+  - name: pypi
+    port: 8080
+    targetPort: 8080
     protocol: TCP
   selector:
-    app: registry
+    app: pypi
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: registry
+  name: pypi
   namespace: infrastructure
   annotations:
     kubernetes.io/ingress.class: traefik
@@ -92,10 +95,10 @@ spec:
   tls:
   - secretName: home
   rules:
-  - host: registry.home.local
+  - host: pypi.home.local
     http:
       paths:
       - path: /
         backend:
-          serviceName: registry
-          servicePort: 5000
+          serviceName: pypi
+          servicePort: 8080

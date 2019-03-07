@@ -10,7 +10,7 @@ Be sure to have Traefik installed and the certificate stored as a secret (see [h
 Then, simply apply the following manifest.
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/MatthieuGouel/k8s-manifests/master/nginx-health/nginx-health.yml
+kubectl apply -f https://raw.githubusercontent.com/matthieugouel/k8s-manifests/master/nginx-health/nginx-health.yml
 ```
 
 ## Sources
